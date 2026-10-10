@@ -15,6 +15,7 @@ const foregroundColorMapping = (theme: Theme) => ({
 });
 const ThemedChevronDown = withUnistyles(ChevronDown);
 const ThemedChevronUp = withUnistyles(ChevronUp);
+type SidebarGroupIndentation = "none" | "status" | "project";
 
 /**
  * The row that ends a truncated group. It is a workspace row that happens to say "Show more", so
@@ -22,19 +23,18 @@ const ThemedChevronUp = withUnistyles(ChevronUp);
  * set of its own. Sitting under a column of rows, anything it does differently reads as a mistake
  * rather than as a distinction.
  *
- * `indented` because the two groupings disagree: status rows sit on their header's label rail and
- * project rows sit flush, so the caller says which list this row is ending. The indent itself is
- * the workspace row's, imported rather than re-derived.
+ * Grouped rows are indented; pinned rows stay flush. The indent itself is the workspace row's,
+ * imported rather than re-derived.
  */
 export function SidebarGroupToggleRow({
   expanded,
   onPress,
-  indented = false,
+  indentation = "none",
   testID,
 }: {
   expanded: boolean;
   onPress: () => void;
-  indented?: boolean;
+  indentation?: SidebarGroupIndentation;
   testID: string;
 }) {
   const { t } = useTranslation();
@@ -44,11 +44,12 @@ export function SidebarGroupToggleRow({
   const rowStyle = useCallback(
     ({ hovered = false, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
       styles.row,
-      indented && sidebarWorkspaceRowStyles.rowIndented,
+      indentation === "status" && sidebarWorkspaceRowStyles.rowIndented,
+      indentation === "project" && sidebarWorkspaceRowStyles.rowProjectIndented,
       hovered && !pressed && styles.rowHovered,
       pressed && styles.rowPressed,
     ],
-    [indented],
+    [indentation],
   );
 
   return (
@@ -86,9 +87,9 @@ export function SidebarGroupToggleRow({
 const styles = StyleSheet.create((theme) => ({
   // Kept in step with `workspaceRow` in sidebar-workspace-list.tsx and sidebar-status-list.tsx.
   row: {
-    minHeight: 36,
+    minHeight: 32,
     marginBottom: theme.spacing[0.5],
-    paddingVertical: theme.spacing[2],
+    paddingVertical: theme.spacing[1.5],
     paddingLeft: theme.spacing[2],
     paddingRight: theme.spacing[3],
     borderRadius: theme.borderRadius.lg,

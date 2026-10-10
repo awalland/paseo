@@ -369,7 +369,7 @@ function StatusGroupRows({
             <SidebarGroupToggleRow
               expanded={workspacesExpanded}
               onPress={toggleWorkspacesExpanded}
-              indented
+              indentation="status"
               testID={`sidebar-status-group-show-more-${group.key}`}
             />
           ) : null}

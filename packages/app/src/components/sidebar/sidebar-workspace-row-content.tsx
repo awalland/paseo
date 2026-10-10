@@ -275,16 +275,13 @@ function getStatusDotColorStyle(bucket: SidebarStateBucket) {
 }
 
 export const sidebarWorkspaceRowStyles = StyleSheet.create((theme) => ({
-  // How far a workspace row sits inside the group header above it — a project row or a
-  // status group header. Both groupings share this one indent, so every grouped workspace row
-  // in the sidebar sits on the same rail regardless of how the list is grouped. Pinned rows
-  // are not grouped and stay flush.
-  //
-  // It is row padding rather than a margin on the list, because the row's hover and selected
-  // backgrounds have to keep spanning the group's full width. Indenting the container instead
-  // pulls the highlight in with the content and the row stops lining up with its header.
+  // Use row padding so hover and selection backgrounds still span the group's full width.
+  // Project children have a deeper inset than status groups; pinned rows stay flush.
   rowIndented: {
     paddingLeft: theme.spacing[2] + theme.spacing[2],
+  },
+  rowProjectIndented: {
+    paddingLeft: theme.spacing[2] + theme.spacing[4],
   },
   rowRight: {
     flexDirection: "row",

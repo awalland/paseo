@@ -106,6 +106,7 @@ import { useLimitedSidebarGroup } from "@/components/sidebar/use-limited-sidebar
 import {
   SidebarWorkspaceRowFrame,
   SidebarWorkspaceRowContent,
+  sidebarWorkspaceRowStyles,
   SidebarWorkspaceShortcutBadge,
   resolveTrailingActionVisibility,
   SidebarWorkspaceTrailingActionBase,
@@ -369,14 +370,17 @@ function getProjectWorkspaceRowStyle({
   isPressed,
   selected,
   isHovered,
+  inProjectGroup,
 }: {
   isDragging: boolean;
   isPressed: boolean;
   selected: boolean;
   isHovered: boolean;
+  inProjectGroup: boolean;
 }) {
   return [
     styles.workspaceRow,
+    inProjectGroup && sidebarWorkspaceRowStyles.rowProjectIndented,
     isHovered && styles.workspaceRowHovered,
     selected && styles.sidebarRowSelected,
     isDragging && styles.workspaceRowDragging,
@@ -812,6 +816,7 @@ function NewWorkspaceGhostRow({
   const rowStyle = useCallback(
     ({ hovered = false, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
       styles.newWorkspaceGhostRow,
+      sidebarWorkspaceRowStyles.rowProjectIndented,
       hovered && !pressed && styles.newWorkspaceGhostRowHovered,
       pressed && styles.newWorkspaceGhostRowPressed,
     ],
@@ -1130,6 +1135,7 @@ function WorkspaceRowInner({
           isPressed,
           selected,
           isHovered,
+          inProjectGroup: !leadingProjectName,
         });
         const backdrop = getSidebarRowBackdrop({ isDragging, isPressed, selected, isHovered });
         return (
@@ -1806,6 +1812,7 @@ function ProjectBlock({
             <SidebarGroupToggleRow
               expanded={workspacesExpanded}
               onPress={toggleWorkspacesExpanded}
+              indentation="project"
               testID={`sidebar-project-show-more-${project.viewKey}`}
             />
           ) : null}
@@ -2557,17 +2564,12 @@ const styles = StyleSheet.create((theme) => ({
     paddingBottom: theme.spacing[0.5],
   },
   workspaceListContainer: {},
-  // Kept in step with `workspaceRow` above. It stands in a project's list where a workspace row
-  // would be, so it takes that row's geometry and both of its fills.
-  //
-  // The one departure is the extra left padding: it only ever renders under its project header, so
-  // the step in reads as belonging to that project. Padding rather than margin, so the hover and
-  // pressed fills stay the same box as every other row in the sidebar.
+  // Match workspace row geometry and fills; the shared indent keeps project children aligned.
   newWorkspaceGhostRow: {
     minHeight: 32,
     marginBottom: theme.spacing[0.5],
     paddingVertical: theme.spacing[1.5],
-    paddingLeft: theme.spacing[4],
+    paddingLeft: theme.spacing[2],
     paddingRight: theme.spacing[3],
     borderRadius: theme.borderRadius.lg,
     flexDirection: "row",
