@@ -1261,6 +1261,7 @@ export const ko: TranslationResources = {
       toasts: {
         hostDisconnected: "호스트가 연결되어 있지 않습니다",
         removeFailed: "일부 워크스페이스를 제거하지 못했습니다",
+        openReadmeFailed: "프로젝트 README를 열지 못했습니다",
         updateHostToRemove: "프로젝트를 제거하려면 호스트를 업데이트하세요.",
       },
       empty: {

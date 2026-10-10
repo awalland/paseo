@@ -1,3 +1,11 @@
+import { useMutation } from "@tanstack/react-query";
+import {
+  collectAllPanes,
+  DEFAULT_PANE_ID,
+  selectExplorerSidebarPaneId,
+  useWorkspaceLayoutStore,
+} from "@/stores/workspace-layout-store";
+import { resolveProjectReadme } from "@/projects/readme";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   View,
@@ -251,6 +259,7 @@ interface ProjectHeaderRowProps {
   drag: () => void;
   isDragging: boolean;
   isArchiving?: boolean;
+  isOpeningReadme?: boolean;
   menuController: ReturnType<typeof useContextMenu> | null;
   onRemoveProject?: () => void;
   removeProjectStatus?: "idle" | "pending";
@@ -860,6 +869,7 @@ function ProjectHeaderRow({
   drag,
   isDragging,
   isArchiving = false,
+  isOpeningReadme = false,
   menuController,
   onRemoveProject,
   removeProjectStatus = "idle",
@@ -950,6 +960,9 @@ function ProjectHeaderRow({
           isArchiving={isArchiving}
         />
 
+        {isOpeningReadme ? (
+          <ThemedLoadingSpinner size={14} uniProps={foregroundMutedColorMapping} />
+        ) : null}
         <View style={styles.projectTitleGroup}>
           <Text style={styles.projectTitle} numberOfLines={1}>
             {displayName}
@@ -1739,9 +1752,36 @@ function ProjectBlock({
     })();
   }, [isRemovingProject, displayName, t, toast, project.hosts]);
 
-  const handleToggleCollapsed = useCallback(() => {
+  const readmeMutation = useMutation({
+    mutationFn: () =>
+      resolveProjectReadme({
+        project,
+        selection: activeWorkspaceSelection,
+        getClient: (serverId) => getHostRuntimeStore().getClient(serverId),
+        acceptWorkspace: (serverId, workspace) =>
+          getHostRuntimeStore().acceptWorkspaceSnapshots(serverId, [workspace]),
+      }),
+    onSuccess: (target) => {
+      if (!target) return;
+      const workspaceKey = `${target.serverId}:${target.workspaceId}`;
+      const layoutState = useWorkspaceLayoutStore.getState();
+      const layout = layoutState.layoutByWorkspace[workspaceKey];
+      const explorerPaneId = selectExplorerSidebarPaneId(layoutState, workspaceKey);
+      const mainPanes = layout
+        ? collectAllPanes(layout.root).filter((pane) => pane.id !== explorerPaneId && !pane.hidden)
+        : [];
+      const mainPane = mainPanes.find((pane) => pane.id === layout?.focusedPaneId) ?? mainPanes[0];
+      const paneId = mainPane?.id ?? DEFAULT_PANE_ID;
+      navigateToWorkspace({ ...target, placement: { mode: "prefer", paneId } });
+      onWorkspacePress?.();
+    },
+  });
+
+  const { mutate: openReadme, isPending: isOpeningReadme } = readmeMutation;
+  const handleProjectPress = useCallback(() => {
     onToggleCollapsed(project.viewKey);
-  }, [onToggleCollapsed, project.viewKey]);
+    if (!isOpeningReadme) openReadme();
+  }, [onToggleCollapsed, project.viewKey, isOpeningReadme, openReadme]);
 
   let projectChildren = null;
   if (!collapsed) {
@@ -1796,7 +1836,7 @@ function ProjectBlock({
         statusBucket={aggregateStatusBucket}
         selected={false}
         chevron={rowModel.chevron}
-        onPress={handleToggleCollapsed}
+        onPress={handleProjectPress}
         worktreeTarget={
           rowModel.trailingAction.kind === "new_workspace" ? rowModel.trailingAction.target : null
         }
@@ -1806,12 +1846,22 @@ function ProjectBlock({
         drag={drag}
         isDragging={isDragging}
         isArchiving={isRemovingProject}
+        isOpeningReadme={readmeMutation.isPending}
         menuController={null}
         onRemoveProject={handleRemoveProject}
         removeProjectStatus={isRemovingProject ? "pending" : "idle"}
         dragHandleProps={dragHandleProps}
       />
 
+      {readmeMutation.error ? (
+        <Text
+          accessibilityRole="alert"
+          style={styles.projectTitle}
+          testID={`sidebar-project-readme-error-${project.viewKey}`}
+        >
+          {readmeMutation.error.message}
+        </Text>
+      ) : null}
       {projectChildren}
     </View>
   );

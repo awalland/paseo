@@ -245,8 +245,8 @@ export class WorkspaceFilesSession {
 
   async handleFileExplorerRequest(request: FileExplorerRequest, source?: object): Promise<void> {
     const { cwd: workspaceCwd, path: requestedPath = ".", mode, requestId } = request;
-    const cwd = workspaceCwd.trim();
-    if (!cwd) {
+    const cwd = workspaceCwd;
+    if (!cwd.trim()) {
       this.host.emit(
         {
           type: "file_explorer_response",
@@ -424,8 +424,8 @@ export class WorkspaceFilesSession {
 
   async handleFileDownloadTokenRequest(request: FileDownloadTokenRequest): Promise<void> {
     const { cwd: workspaceCwd, path: requestedPath, requestId } = request;
-    const cwd = workspaceCwd.trim();
-    if (!cwd) {
+    const cwd = workspaceCwd;
+    if (!cwd.trim()) {
       this.host.emit({
         type: "file_download_token_response",
         payload: {

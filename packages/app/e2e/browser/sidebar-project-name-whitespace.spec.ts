@@ -10,6 +10,7 @@ import { connectSeedClient } from "../support/helpers/seed-client";
 
 interface SeededProject {
   projectKey: string;
+  directoryPath: string;
   cleanup(): Promise<void>;
 }
 
@@ -36,6 +37,7 @@ async function seedProjectNamedWithTrailingSpace(): Promise<SeededProject> {
     }
     return {
       projectKey: project.projectKey,
+      directoryPath,
       cleanup: async () => {
         await client.removeProject(project.projectId).catch(() => undefined);
         await client.close().catch(() => undefined);
@@ -71,6 +73,50 @@ test("a project whose folder name ends in a space renders in the sidebar", async
 
     await expectProjectRow(page, project.projectKey);
     await expectAppShellRendered(page);
+  } finally {
+    await project.cleanup();
+  }
+});
+
+test("clicking a project opens its root README as a rendered file tab", async ({ page }) => {
+  const project = await seedProjectNamedWithTrailingSpace();
+  try {
+    await gotoAppShell(page);
+    const row = page.getByTestId(
+      `sidebar-project-row-${projectEquivalenceViewKey(project.projectKey)}`,
+    );
+    await expect(row).toBeVisible({ timeout: 60_000 });
+    await row.click();
+    await expect(page.getByTestId("markdown-preview-frame")).toContainText("Trailing space");
+    await expect(
+      page.getByTestId(
+        `sidebar-project-readme-error-${projectEquivalenceViewKey(project.projectKey)}`,
+      ),
+    ).toHaveCount(0);
+  } finally {
+    await project.cleanup();
+  }
+});
+
+test("a failed project README lookup stays visible and can be retried", async ({ page }) => {
+  const project = await seedProjectNamedWithTrailingSpace();
+  try {
+    await gotoAppShell(page);
+    const row = page.getByTestId(
+      `sidebar-project-row-${projectEquivalenceViewKey(project.projectKey)}`,
+    );
+    await expect(row).toBeVisible({ timeout: 60_000 });
+    await rm(project.directoryPath, { recursive: true });
+    await row.click();
+    const error = page.getByTestId(
+      `sidebar-project-readme-error-${projectEquivalenceViewKey(project.projectKey)}`,
+    );
+    await expect(error).toBeVisible();
+    await mkdir(project.directoryPath);
+    await writeFile(path.join(project.directoryPath, "readme.md"), "# Retry succeeded\n");
+    await row.click();
+    await expect(page.getByTestId("markdown-preview-frame")).toContainText("Retry succeeded");
+    await expect(error).toHaveCount(0);
   } finally {
     await project.cleanup();
   }

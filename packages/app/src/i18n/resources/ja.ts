@@ -1268,6 +1268,7 @@ export const ja: TranslationResources = {
       toasts: {
         hostDisconnected: "ホストが接続されていません",
         removeFailed: "一部のワークスペースの削除に失敗しました",
+        openReadmeFailed: "プロジェクトのREADMEを開けませんでした",
         updateHostToRemove: "プロジェクトを削除するにはホストを更新してください。",
       },
       empty: {

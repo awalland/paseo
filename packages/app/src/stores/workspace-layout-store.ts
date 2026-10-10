@@ -222,7 +222,7 @@ function createExplorerSidebarNode(): SplitNode {
   if (!pane) {
     throw new Error("Default Explorer pane is missing");
   }
-  return { kind: "pane", pane };
+  return { kind: "pane", pane: { ...pane, hidden: true } };
 }
 
 function preserveVersionOneSideTabs(input: {

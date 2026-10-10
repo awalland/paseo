@@ -1254,6 +1254,7 @@ export const ar: TranslationResources = {
       toasts: {
         hostDisconnected: "Host غير متصل",
         removeFailed: "فشل في إزالة بعض مساحات العمل",
+        openReadmeFailed: "تعذّر فتح ملف README للمشروع",
         updateHostToRemove: "قم بتحديث Host لإزالة المشاريع.",
       },
       empty: {

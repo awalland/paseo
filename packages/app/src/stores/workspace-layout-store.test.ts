@@ -233,7 +233,7 @@ function expectGroup(node: SplitNode): Extract<SplitNode, { kind: "group" }> {
 }
 
 describe("workspace-layout-store helpers", () => {
-  it("seeds Files and Changes in the default Explorer sidebar", () => {
+  it("opens the default Explorer sidebar on Files while keeping workspace focus in main", () => {
     const layout = createWorkspaceLayoutWithExplorerSidebar();
     const tabs = collectAllTabs(layout.root);
 
@@ -242,8 +242,10 @@ describe("workspace-layout-store helpers", () => {
       { kind: "files" },
       { kind: "changes_tree" },
     ]);
+    expect(findPaneById(layout.root, "explorer")?.hidden).not.toBe(true);
+    expect(layout.focusedPaneId).toBe("main");
     expect(findPaneById(layout.root, "explorer")?.focusedTabId).toBe(
-      tabs.find((tab) => tab.target.kind === "changes_tree")?.tabId,
+      tabs.find((tab) => tab.target.kind === "files")?.tabId,
     );
   });
 
@@ -1432,6 +1434,7 @@ describe("workspace-layout-store actions", () => {
   it("leaves an Explorer background tab in the only other pane instead of emptying it", () => {
     const workspaceKey = createWorkspaceKey();
     const store = workspaceLayoutStore.getState();
+    store.hideExplorerSidebar(workspaceKey);
     const setupTabId = store.openTab({
       workspaceKey: workspaceKey,
       target: { kind: "setup", workspaceId: WORKSPACE_ID },
@@ -1818,6 +1821,7 @@ describe("workspace-layout-store actions", () => {
   it("keeps setup in main when Explorer is hidden", () => {
     const workspaceKey = createWorkspaceKey();
     const store = workspaceLayoutStore.getState();
+    store.hideExplorerSidebar(workspaceKey);
     const agentTabId = store.openTab({
       workspaceKey: workspaceKey,
       target: { kind: "agent", agentId: "agent-1" },
@@ -2857,7 +2861,7 @@ describe("workspace-layout-store actions", () => {
 
     expect(splitPaneId).toBe("pane_cccccccc-cccc-cccc-cccc-cccccccccccc");
     expect(layout.focusedPaneId).toBe("main");
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual(["main"]);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual(["main", "explorer"]);
   });
 
   it("splitPane preserves four user-created levels beneath the explorer split", () => {
@@ -2963,7 +2967,7 @@ describe("workspace-layout-store actions", () => {
     const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
 
     expect(layout.focusedPaneId).toBe(splitPaneId);
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([splitPaneId!]);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([splitPaneId!, "explorer"]);
     expect(findPaneById(layout.root, splitPaneId)?.tabIds).toEqual([
       "file_/repo/worktree/b.ts",
       "file_/repo/worktree/a.ts",
@@ -2988,7 +2992,7 @@ describe("workspace-layout-store actions", () => {
     store.moveTabToPane(workspaceKey, newTabId, "main");
 
     const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual(["main"]);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual(["main", "explorer"]);
     expect(findPaneById(layout.root, "main")?.tabIds).toEqual([fileTabId]);
     expect(collectAllTabs(layout.root).some((tab) => tab.tabId === newTabId)).toBe(false);
   });
@@ -3066,7 +3070,7 @@ describe("workspace-layout-store actions", () => {
     expect(layout.focusedPaneId).toBe(paneCId);
     expect(findPaneById(layout.root, "main")?.tabIds).toEqual(["file_/repo/worktree/a.ts"]);
     expect(findPaneById(layout.root, paneCId)?.tabIds).toEqual(["file_/repo/worktree/c.ts"]);
-    expect(findPaneById(layout.root, "explorer")?.hidden).toBe(true);
+    expect(findPaneById(layout.root, "explorer")?.hidden).not.toBe(true);
   });
 
   it("openTab focuses the existing tab instead of creating a duplicate entry", () => {
@@ -3297,7 +3301,7 @@ describe("workspace-layout-store actions", () => {
     );
     expect(mainTab?.target).toEqual({ kind: "new_tab" });
     expect(findPaneById(layout.root, "main")?.focusedTabId).toBe(mainTab?.tabId);
-    expect(findPaneById(layout.root, "explorer")?.hidden).toBe(true);
+    expect(findPaneById(layout.root, "explorer")?.hidden).not.toBe(true);
   });
 
   it("persists explicit agent opens per workspace", () => {
@@ -4101,7 +4105,7 @@ describe("workspace-layout-store actions", () => {
     store.closePane(workspaceKey, "main");
 
     const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([splitPaneId]);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([splitPaneId, "explorer"]);
     expect(layout.focusedPaneId).toBe(splitPaneId);
   });
 
@@ -4130,7 +4134,7 @@ describe("workspace-layout-store actions", () => {
 
     const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
     expect(collectContentTabs(layout.root).map((tab) => tab.tabId)).toEqual([keptTabId]);
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([splitPaneId]);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([splitPaneId, "explorer"]);
   });
 
   it("closePane refuses to close the last visible pane", () => {
@@ -4385,6 +4389,7 @@ describe("workspace-layout-store actions", () => {
       target: { kind: "agent", agentId: "only" },
       intent: "reveal",
     });
+    store.hideExplorerSidebar(workspaceKey);
     const loadedFinal = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
 
     // Only `main` is on screen; Explorer is present but hidden.
@@ -4413,7 +4418,7 @@ describe("workspace-layout-store actions", () => {
     const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
     expect(layout).toBe(before);
     expect(findPaneById(layout.root, "main")?.tabIds).toEqual([agentTabId]);
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual(["main"]);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual(["main", "explorer"]);
   });
 });
 

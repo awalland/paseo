@@ -1253,7 +1253,6 @@ function createDefaultExplorerSidebarTabs(): WorkspaceTab[] {
   }));
 }
 
-/** The desktop companion pane exists before it is first shown. */
 export function createWorkspaceLayoutWithExplorerSidebar(): WorkspaceLayout {
   return {
     root: createGroupNode({
@@ -1264,7 +1263,7 @@ export function createWorkspaceLayoutWithExplorerSidebar(): WorkspaceLayout {
         createPaneNode({
           id: EXPLORER_SIDEBAR_PANE_ID,
           tabs: createDefaultExplorerSidebarTabs(),
-          hidden: true,
+          focusedTabId: buildDeterministicWorkspaceTabId({ kind: "files" }),
         }),
       ],
       sizes: [0.78, 0.22],

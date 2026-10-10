@@ -1272,6 +1272,7 @@ export const ru: TranslationResources = {
       toasts: {
         hostDisconnected: "Хост не подключён",
         removeFailed: "Не удалось удалить некоторые рабочие пространства.",
+        openReadmeFailed: "Не удалось открыть README проекта",
         updateHostToRemove: "Обновите хост, чтобы удалять проекты.",
       },
       empty: {

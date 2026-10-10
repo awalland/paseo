@@ -1280,6 +1280,7 @@ export const ptBR: TranslationResources = {
       toasts: {
         hostDisconnected: "Host não está conectado",
         removeFailed: "Falha ao remover alguns workspaces",
+        openReadmeFailed: "Não foi possível abrir o README do projeto",
         updateHostToRemove: "Atualize o host para remover projetos.",
       },
       empty: {

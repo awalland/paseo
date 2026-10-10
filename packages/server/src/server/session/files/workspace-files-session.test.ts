@@ -2,6 +2,7 @@ import { SessionDelivery } from "../owned-subscriptions/index.js";
 import {
   existsSync,
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -303,8 +304,10 @@ describe("WorkspaceFilesSession", () => {
     ]);
   });
 
-  test("lists directory entries", async () => {
-    const cwd = makeDir("workspace-files-list-");
+  test.each(["project", "project "])("lists directory entries in %j", async (name) => {
+    const parent = makeDir("workspace-files-list-");
+    const cwd = join(parent, name);
+    mkdirSync(cwd);
     writeFileSync(join(cwd, "a.txt"), "alpha");
     const { subsystem, emitted } = makeSubsystem();
 

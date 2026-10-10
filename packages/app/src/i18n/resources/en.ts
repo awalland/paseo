@@ -1262,6 +1262,7 @@ export const en = {
       toasts: {
         hostDisconnected: "Host is not connected",
         removeFailed: "Failed to remove some workspaces",
+        openReadmeFailed: "Failed to open project README",
         updateHostToRemove: "Update the host to remove projects.",
       },
       empty: {
