@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { test, expect } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -92,6 +93,22 @@ class MetadataMockLoadTestAgentClient extends MockLoadTestAgentClient {
       ],
       modes: [],
     };
+  }
+}
+
+class NamingFallbackAgentClient extends MockLoadTestAgentClient {
+  readonly namingModels: Array<string | undefined> = [];
+  readonly namingThinkingOptions: Array<string | undefined> = [];
+
+  override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+    if (config.internal) {
+      this.namingModels.push(config.model);
+      this.namingThinkingOptions.push(config.thinkingOptionId);
+      if (config.model === "unavailable-metadata-model") {
+        throw new Error("Metadata model is unavailable");
+      }
+    }
+    return super.createSession(config);
   }
 }
 
@@ -327,6 +344,7 @@ test("daemon bootstrap migrates cwd-only legacy agents before same-cwd workspace
 test("workspace.create directory source with firstAgentContext generates a daemon-visible workspace title", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "paseo-named-local-dir-"));
   const daemon = await createTestPaseoDaemon({
+    isDev: true,
     agentClients: { mock: new MockLoadTestAgentClient() },
   });
   const client = new DaemonClient({
@@ -361,6 +379,86 @@ test("workspace.create directory source with firstAgentContext generates a daemo
     rmSync(cwd, { recursive: true, force: true });
   }
 }, 20_000);
+
+test.each([
+  { kind: "directory", focusOtherAgent: false },
+  { kind: "directory", focusOtherAgent: true },
+  { kind: "worktree", focusOtherAgent: false },
+  { kind: "worktree", focusOtherAgent: true },
+] as const)(
+  "$kind workspace naming falls back to its initial agent with unrelated focus=$focusOtherAgent",
+  async ({ kind, focusOtherAgent }) => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "paseo-naming-fallback-"));
+    const provider = new NamingFallbackAgentClient();
+    const daemon = await createTestPaseoDaemon({ isDev: true, agentClients: { mock: provider } });
+    const client = new DaemonClient({ url: `ws://127.0.0.1:${daemon.port}/ws` });
+    const prompt =
+      "Fix workspace naming when the preferred metadata model fails and no new agent is focused";
+
+    try {
+      execFileSync("git", ["init", "--initial-branch=main", cwd], { stdio: "pipe" });
+      execFileSync(
+        "git",
+        [
+          "-c",
+          "user.name=Paseo Test",
+          "-c",
+          "user.email=test@example.com",
+          "commit",
+          "--allow-empty",
+          "-m",
+          "Initial commit",
+        ],
+        { cwd, stdio: "pipe" },
+      );
+      await client.connect();
+      await client.patchDaemonConfig({
+        metadataGeneration: {
+          providers: [{ provider: "mock", model: "unavailable-metadata-model" }],
+        },
+      });
+      if (focusOtherAgent) {
+        const other = await client.createAgent({
+          provider: "mock",
+          cwd,
+          model: "thirty-minute-stream",
+        });
+        client.sendHeartbeat({
+          deviceType: "web",
+          focusedAgentId: other.id,
+          appVisible: true,
+          lastActivityAt: new Date().toISOString(),
+        });
+      }
+      const created = await client.createWorkspace({
+        source:
+          kind === "directory"
+            ? { kind: "directory", path: cwd }
+            : { kind: "worktree", cwd, baseBranch: "main" },
+        agent: {
+          provider: "mock",
+          cwd,
+          model: "ten-second-stream",
+          thinkingOptionId: "high",
+          initialPrompt: prompt,
+        },
+      });
+      const workspaceId = created.workspace?.id;
+      if (!workspaceId) throw new Error(created.error ?? "Expected workspace to be created");
+
+      await expect
+        .poll(() => workspaceName(client, workspaceId), { timeout: 10_000 })
+        .toBe(prompt.slice(0, 80));
+      expect(provider.namingModels).toEqual(["unavailable-metadata-model", "ten-second-stream"]);
+      expect(provider.namingThinkingOptions.at(-1)).toBe("high");
+    } finally {
+      await client.close().catch(() => undefined);
+      await daemon.close();
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  },
+  20_000,
+);
 
 test("local workspace auto-title does not broadcast provider snapshot warm-up to clients", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "paseo-title-snapshot-storm-"));
@@ -414,6 +512,7 @@ test("local workspace auto-title does not broadcast provider snapshot warm-up to
 test("create_agent_request with workspaceId does not retitle an existing workspace", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "paseo-agent-submit-title-"));
   const daemon = await createTestPaseoDaemon({
+    isDev: true,
     agentClients: { mock: new MockLoadTestAgentClient() },
   });
   const client = new DaemonClient({
@@ -457,6 +556,7 @@ test("create_agent_request with workspaceId does not retitle an existing workspa
 test("creating another same-cwd local workspace keeps running status on the owning workspace only", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "paseo-running-same-cwd-create-"));
   const daemon = await createTestPaseoDaemon({
+    isDev: true,
     agentClients: { mock: new MockLoadTestAgentClient() },
   });
   const client = new DaemonClient({

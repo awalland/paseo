@@ -1,3 +1,4 @@
+import type { StructuredGenerationSelection } from "../agent/structured-generation-providers.js";
 import { formatSystemNotificationPrompt } from "../agent/agent-messages/index.js";
 import { randomUUID } from "node:crypto";
 import { stat } from "node:fs/promises";
@@ -217,9 +218,10 @@ type ScheduleAgentManager = Pick<
     | "waitForAgentClose"
   >;
 
-interface ScheduleWorkspaceCreateInput {
+export interface ScheduleWorkspaceCreateInput {
   cwd: string;
   firstAgentContext: FirstAgentContext;
+  fallbackSelection: StructuredGenerationSelection;
 }
 
 export interface ScheduleServiceOptions {
@@ -972,12 +974,16 @@ export class ScheduleService {
     prompt: string,
   ): Promise<PersistedWorkspaceRecord> {
     const firstAgentContext = { prompt };
+    const input: ScheduleWorkspaceCreateInput = {
+      cwd: config.cwd,
+      firstAgentContext,
+      fallbackSelection: config,
+    };
     switch (config.isolation ?? "local") {
       case "local":
-        return this.createDirectoryWorkspace({ cwd: config.cwd, firstAgentContext });
+        return this.createDirectoryWorkspace(input);
       case "worktree":
-        return (await this.createPaseoWorktreeWorkspace({ cwd: config.cwd, firstAgentContext }))
-          .workspace;
+        return (await this.createPaseoWorktreeWorkspace(input)).workspace;
     }
   }
 

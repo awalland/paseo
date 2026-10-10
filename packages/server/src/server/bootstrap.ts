@@ -149,7 +149,7 @@ import {
   type WorkspaceArchiveContext,
 } from "./workspace-registry.js";
 import { CheckoutDiffManager } from "./checkout-diff-manager.js";
-import { ScheduleService } from "./schedule/service.js";
+import { ScheduleService, type ScheduleWorkspaceCreateInput } from "./schedule/service.js";
 import { DaemonConfigStore, type MutableDaemonConfig } from "./daemon-config-store.js";
 import { createOrchestrationSkills } from "./orchestration-skills/index.js";
 import { resolveConfigFromPersisted, type CliConfigOverrides } from "./config.js";
@@ -218,6 +218,7 @@ import { resolveGitProcessPolicy } from "../utils/git-process-scheduler.js";
 import { resolveFirstAgentPromptTitle } from "./agent/create-agent-title.js";
 import {
   createAgentCommand,
+  type WorkspaceCreationContext,
   type CreateAgentCommandDependencies,
 } from "./agent/create-agent/create.js";
 import { archiveAgentCommand, cancelAgentRunCommand } from "./agent/lifecycle-command.js";
@@ -1031,7 +1032,7 @@ export async function createPaseoDaemon(
   const ensureWorkspaceForCreateExternal = async (
     cwd: string,
     firstAgentContext?: FirstAgentContext,
-    context?: { callerWorkspaceId?: string },
+    context?: WorkspaceCreationContext,
   ): Promise<string> => {
     const workspace = await workspaceProvisioning.createWorkspaceForDirectory(
       cwd,
@@ -1044,6 +1045,7 @@ export async function createPaseoDaemon(
         workspaceId: workspace.workspaceId,
         cwd: workspace.cwd,
         firstAgentContext,
+        fallbackSelection: context?.fallbackSelection,
       });
     }
     return workspace.workspaceId;
@@ -1084,7 +1086,7 @@ export async function createPaseoDaemon(
   const ensureWorkspaceForCreateAndBroadcastExternal = async (
     cwd: string,
     firstAgentContext?: FirstAgentContext,
-    context?: { callerWorkspaceId?: string },
+    context?: WorkspaceCreationContext,
   ): Promise<string> => {
     const workspaceId = await ensureWorkspaceForCreateExternal(cwd, firstAgentContext, context);
     await emitWorkspaceUpdatesExternal([workspaceId]);
@@ -1293,10 +1295,7 @@ export async function createPaseoDaemon(
       }),
   });
 
-  const createScheduleLocalWorkspaceExternal = async (input: {
-    cwd: string;
-    firstAgentContext: FirstAgentContext;
-  }) => {
+  const createScheduleLocalWorkspaceExternal = async (input: ScheduleWorkspaceCreateInput) => {
     const workspace = await workspaceProvisioning.createWorkspaceForDirectory(
       input.cwd,
       resolveFirstAgentPromptTitle(input.firstAgentContext),
@@ -1305,17 +1304,16 @@ export async function createPaseoDaemon(
       workspaceId: workspace.workspaceId,
       cwd: workspace.cwd,
       firstAgentContext: input.firstAgentContext,
+      fallbackSelection: input.fallbackSelection,
     });
     await emitWorkspaceUpdatesExternal([workspace.workspaceId]);
     return workspace;
   };
-  const createSchedulePaseoWorktreeExternal = async (input: {
-    cwd: string;
-    firstAgentContext: FirstAgentContext;
-  }) => {
+  const createSchedulePaseoWorktreeExternal = async (input: ScheduleWorkspaceCreateInput) => {
     const result = await createPaseoWorktreeForTools({
       cwd: input.cwd,
       firstAgentContext: input.firstAgentContext,
+      fallbackSelection: input.fallbackSelection,
     });
     await emitWorkspaceUpdatesExternal([result.workspace.workspaceId]);
     return result;

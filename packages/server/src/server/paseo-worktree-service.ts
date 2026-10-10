@@ -29,7 +29,10 @@ import { buildAgentBranchNameSeed } from "./agent/prompt-attachments.js";
 import type { FirstAgentContext } from "@getpaseo/protocol/messages";
 import { runWithGitCommandPriority } from "../utils/run-git-command.js";
 
+import type { StructuredGenerationSelection } from "./agent/structured-generation-providers.js";
+
 export interface CreatePaseoWorktreeInput extends CreateWorktreeCoreInput {
+  fallbackSelection?: StructuredGenerationSelection;
   workspaceId?: string;
   projectId?: string;
   title?: string;

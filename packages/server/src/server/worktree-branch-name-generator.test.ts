@@ -181,10 +181,10 @@ describe("generateBranchNameFromFirstAgentContext", () => {
     expect(firstCall.prompt).toContain("Review flaky checkout");
   });
 
-  test("uses the current selection as the final provider fallback", async () => {
+  test("uses the first agent selection as the final provider fallback", async () => {
     const structured = createStructuredGenerator({
-      title: "Focused task",
-      branch: "focused-branch",
+      title: "Initial task",
+      branch: "initial-branch",
     });
 
     const result = await generateBranchNameFromFirstAgentContext({
@@ -193,12 +193,12 @@ describe("generateBranchNameFromFirstAgentContext", () => {
       providerSnapshotManager: {
         listProviders: vi.fn(async () => [
           {
-            provider: "focused-provider",
+            provider: "initial-provider",
             status: "ready" as const,
             enabled: true,
             models: [
               {
-                provider: "focused-provider",
+                provider: "initial-provider",
                 id: "selected-model",
                 label: "Selected Model",
                 isDefault: true,
@@ -207,8 +207,8 @@ describe("generateBranchNameFromFirstAgentContext", () => {
           },
         ]),
       },
-      currentSelection: {
-        provider: "focused-provider",
+      fallbackSelection: {
+        provider: "initial-provider",
         model: "selected-model",
         thinkingOptionId: "medium",
       },
@@ -217,13 +217,13 @@ describe("generateBranchNameFromFirstAgentContext", () => {
       deps: { generateStructuredAgentResponseWithFallback: structured.generateStructured },
     });
 
-    expect(result?.branch).toBe("focused-branch");
+    expect(result?.branch).toBe("initial-branch");
     const firstCall = structured.calls[0];
     if (!firstCall) {
       throw new Error("expected structured generation call");
     }
     expect(firstCall.providers).toEqual([
-      { provider: "focused-provider", model: "selected-model", thinkingOptionId: "medium" },
+      { provider: "initial-provider", model: "selected-model", thinkingOptionId: "medium" },
     ]);
   });
 

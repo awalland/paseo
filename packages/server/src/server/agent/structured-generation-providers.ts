@@ -29,15 +29,17 @@ export const DEFAULT_STRUCTURED_GENERATION_PROVIDERS: readonly StructuredGenerat
     { modelSubstring: "nemotron-3-super" },
   ] as const;
 
+export interface StructuredGenerationSelection {
+  provider?: AgentProvider | null;
+  model?: string | null;
+  thinkingOptionId?: string | null;
+}
+
 export interface ResolveStructuredGenerationProvidersOptions {
   cwd: string;
   providerSnapshotManager: Pick<ProviderSnapshotManager, "listProviders">;
   daemonConfig?: StructuredGenerationDaemonConfig | null;
-  currentSelection?: {
-    provider?: AgentProvider | null;
-    model?: string | null;
-    thinkingOptionId?: string | null;
-  };
+  currentSelection?: StructuredGenerationSelection;
 }
 
 export async function resolveStructuredGenerationProviders(

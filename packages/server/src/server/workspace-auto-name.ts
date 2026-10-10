@@ -4,7 +4,10 @@ import type { FirstAgentContext } from "@getpaseo/protocol/messages";
 import { resolveFirstAgentPromptTitle } from "./agent/create-agent-title.js";
 import type { AgentManager } from "./agent/agent-manager.js";
 import type { ProviderSnapshotManager } from "./agent/provider-snapshot-manager.js";
-import type { StructuredGenerationDaemonConfig } from "./agent/structured-generation-providers.js";
+import type {
+  StructuredGenerationDaemonConfig,
+  StructuredGenerationSelection,
+} from "./agent/structured-generation-providers.js";
 import {
   attemptFirstAgentBranchAutoName,
   type AttemptFirstAgentBranchAutoNameResult,
@@ -15,12 +18,9 @@ import type { PersistedWorkspaceRecord, WorkspaceRegistry } from "./workspace-re
 import {
   generateBranchNameFromFirstAgentContext,
   type GeneratedWorkspaceName,
-  type GenerateBranchNameFromFirstAgentContextOptions,
 } from "./worktree-branch-name-generator.js";
 
 type WorkspaceNameGenerator = typeof generateBranchNameFromFirstAgentContext;
-
-type CurrentSelection = GenerateBranchNameFromFirstAgentContextOptions["currentSelection"] | null;
 
 interface WorkspaceAutoNameOptions {
   agentManager: AgentManager;
@@ -33,10 +33,6 @@ interface WorkspaceAutoNameOptions {
   emitWorkspaceUpdateForWorkspaceId: (workspaceId: string) => Promise<void>;
   logger: pino.Logger;
   generateWorkspaceName?: WorkspaceNameGenerator;
-}
-
-interface ScheduleContext {
-  currentSelection?: CurrentSelection;
 }
 
 export class WorkspaceAutoName {
@@ -65,48 +61,33 @@ export class WorkspaceAutoName {
       options.generateWorkspaceName ?? generateBranchNameFromFirstAgentContext;
   }
 
-  scheduleForWorktree(
-    input: {
-      workspace: PersistedWorkspaceRecord;
-      firstAgentContext: FirstAgentContext;
-    },
-    context: ScheduleContext = {},
-  ): void {
-    this.schedule(
-      () =>
-        this.maybeAutoNameWorkspaceBranchForFirstAgent({
-          ...input,
-          currentSelection: context.currentSelection ?? null,
-        }),
-      {
-        cwd: input.workspace.cwd,
-        message: "Failed to auto-name worktree branch",
-      },
-    );
+  scheduleForWorktree(input: {
+    workspace: PersistedWorkspaceRecord;
+    firstAgentContext: FirstAgentContext;
+    fallbackSelection?: StructuredGenerationSelection;
+  }): void {
+    this.schedule(() => this.maybeAutoNameWorkspaceBranchForFirstAgent(input), {
+      cwd: input.workspace.cwd,
+      message: "Failed to auto-name worktree branch",
+    });
   }
 
-  scheduleForDirectory(
-    input: {
-      workspaceId: string;
-      cwd: string;
-      firstAgentContext: FirstAgentContext;
-    },
-    context: ScheduleContext = {},
-  ): void {
-    this.schedule(
-      () =>
-        this.maybeAutoNameDirectoryWorkspaceTitle({
-          ...input,
-          currentSelection: context.currentSelection ?? null,
-        }),
-      { cwd: input.cwd, message: "Failed to auto-name directory workspace title" },
-    );
+  scheduleForDirectory(input: {
+    workspaceId: string;
+    cwd: string;
+    firstAgentContext: FirstAgentContext;
+    fallbackSelection?: StructuredGenerationSelection;
+  }): void {
+    this.schedule(() => this.maybeAutoNameDirectoryWorkspaceTitle(input), {
+      cwd: input.cwd,
+      message: "Failed to auto-name directory workspace title",
+    });
   }
 
   private async maybeAutoNameWorkspaceBranchForFirstAgent(input: {
     workspace: PersistedWorkspaceRecord;
     firstAgentContext: FirstAgentContext;
-    currentSelection: CurrentSelection;
+    fallbackSelection?: StructuredGenerationSelection;
   }): Promise<void> {
     const worktreeRoot = input.workspace.worktreeRoot ?? input.workspace.cwd;
     let generated: GeneratedWorkspaceName | null = null;
@@ -117,7 +98,7 @@ export class WorkspaceAutoName {
         return this.generateFromContext({
           cwd: input.workspace.cwd,
           firstAgentContext,
-          currentSelection: input.currentSelection,
+          fallbackSelection: input.fallbackSelection,
         }).then((nextGenerated) => {
           generated = nextGenerated;
           return nextGenerated?.branch ?? null;
@@ -129,7 +110,7 @@ export class WorkspaceAutoName {
       generated = await this.generateFromContext({
         cwd: input.workspace.cwd,
         firstAgentContext: input.firstAgentContext,
-        currentSelection: input.currentSelection,
+        fallbackSelection: input.fallbackSelection,
       });
     }
     const generatedTitle = generated?.title ?? null;
@@ -156,12 +137,12 @@ export class WorkspaceAutoName {
     workspaceId: string;
     cwd: string;
     firstAgentContext: FirstAgentContext;
-    currentSelection: CurrentSelection;
+    fallbackSelection?: StructuredGenerationSelection;
   }): Promise<void> {
     const generated = await this.generateFromContext({
       cwd: input.cwd,
       firstAgentContext: input.firstAgentContext,
-      currentSelection: input.currentSelection,
+      fallbackSelection: input.fallbackSelection,
     });
     const title = generated?.title ?? null;
     if (!title) {
@@ -197,7 +178,7 @@ export class WorkspaceAutoName {
   private generateFromContext(input: {
     cwd: string;
     firstAgentContext: FirstAgentContext;
-    currentSelection: CurrentSelection;
+    fallbackSelection?: StructuredGenerationSelection;
   }): Promise<GeneratedWorkspaceName | null> {
     return this.generateWorkspaceName({
       agentManager: this.agentManager,
@@ -205,7 +186,7 @@ export class WorkspaceAutoName {
       workspaceGitService: this.workspaceGitService,
       providerSnapshotManager: this.providerSnapshotManager,
       daemonConfig: this.readDaemonConfig(),
-      currentSelection: input.currentSelection ?? undefined,
+      fallbackSelection: input.fallbackSelection,
       firstAgentContext: input.firstAgentContext,
       logger: this.logger,
     });

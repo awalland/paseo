@@ -128,6 +128,7 @@ interface CreatePaseoWorktreeWorkflowDependencies extends CreatePaseoWorktreeInB
   autoNameWorkspaceBranchForFirstAgent: (input: {
     workspace: PersistedWorkspaceRecord;
     firstAgentContext: FirstAgentContext;
+    fallbackSelection?: CreatePaseoWorktreeInput["fallbackSelection"];
   }) => void;
   startWorkspaceSetup?: (workspaceId: string, operation: WorkspaceSetupOperation) => void;
   assertWorkspaceAutomationAllowed?: (workspaceId: string) => Promise<void>;
@@ -244,6 +245,7 @@ export async function buildAgentSessionConfig(
         checkoutSource: normalized.checkoutSource,
         githubPrNumber: normalized.githubPrNumber,
         firstAgentContext,
+        fallbackSelection: config,
         runSetup: false,
         paseoHome: dependencies.paseoHome,
         worktreesRoot: dependencies.worktreesRoot,
@@ -695,6 +697,7 @@ export async function createPaseoWorktreeWorkflow(
       dependencies.autoNameWorkspaceBranchForFirstAgent({
         workspace,
         firstAgentContext: input.firstAgentContext,
+        fallbackSelection: input.fallbackSelection,
       });
     }
     void dependencies.warmWorkspaceGitData(workspace).catch((error) => {

@@ -16,6 +16,7 @@ import type { AgentManager, CreateAgentOptions, ManagedAgent } from "../agent-ma
 import type { AgentPromptInput, AgentRunOptions, AgentSessionConfig } from "../agent-sdk-types.js";
 import type { AgentStorage } from "../agent-storage.js";
 import type { AgentOwner } from "../agent-owner.js";
+import type { StructuredGenerationSelection } from "../structured-generation-providers.js";
 import type { ProviderSnapshotManager } from "../provider-snapshot-manager.js";
 import { setupFinishNotification, startCreatedAgentInitialPrompt } from "../agent-prompt.js";
 import { resolveCreateAgentTitles } from "../create-agent-title.js";
@@ -49,10 +50,15 @@ export interface CreateAgentCommandDependencies {
   ensureWorkspaceForCreate?: EnsureWorkspaceForCreate;
 }
 
+export interface WorkspaceCreationContext {
+  callerWorkspaceId?: string;
+  fallbackSelection?: StructuredGenerationSelection;
+}
+
 export type EnsureWorkspaceForCreate = (
   cwd: string,
   firstAgentContext?: FirstAgentContext,
-  context?: { callerWorkspaceId?: string },
+  context?: WorkspaceCreationContext,
 ) => Promise<string>;
 
 export interface CreateAgentFromSessionInput {
@@ -323,6 +329,11 @@ async function resolveMcpCreateAgent(
     ? requireParentAgent(dependencies.agentManager, input.callerAgentId)
     : null;
   const cwd = resolveMcpInitialCwd(input, parentAgent);
+  const fallbackSelection: StructuredGenerationSelection = {
+    provider,
+    model: resolvedProviderModel.model ?? input.config?.model,
+    thinkingOptionId: input.thinking ?? input.config?.thinkingOptionId,
+  };
   const { resolvedCwd, setupContinuation, createdWorkspaceId, createdWorktree } =
     await resolveMcpCwd({
       dependencies,
@@ -330,6 +341,7 @@ async function resolveMcpCreateAgent(
       worktree: input.worktree,
       initialPrompt: input.initialPrompt ?? "",
       callerWorkspaceId: parentAgent?.workspaceId,
+      fallbackSelection,
     });
   if (createdWorktree) input.onWorktreeCreated?.(createdWorktree);
 
@@ -344,12 +356,10 @@ async function resolveMcpCreateAgent(
     resolveWorkspace: async (workspaceId) => ({ workspaceId, cwd: resolvedCwd }),
     createWorkspace: async () => ({
       workspaceId: requireResolvedWorkspaceId(
-        await ensureWorkspaceForMcpCreate(
-          dependencies,
-          resolvedCwd,
-          input.initialPrompt ?? "",
-          parentAgent?.workspaceId,
-        ),
+        await ensureWorkspaceForMcpCreate(dependencies, resolvedCwd, input.initialPrompt ?? "", {
+          callerWorkspaceId: parentAgent?.workspaceId,
+          fallbackSelection,
+        }),
       ),
       cwd: resolvedCwd,
     }),
@@ -459,16 +469,12 @@ async function ensureWorkspaceForMcpCreate(
   dependencies: CreateAgentCommandDependencies,
   cwd: string,
   initialPrompt: string,
-  callerWorkspaceId?: string,
+  context: WorkspaceCreationContext,
 ): Promise<string | undefined> {
   if (!dependencies.ensureWorkspaceForCreate) {
     return undefined;
   }
-  return dependencies.ensureWorkspaceForCreate(
-    cwd,
-    { prompt: initialPrompt },
-    { callerWorkspaceId },
-  );
+  return dependencies.ensureWorkspaceForCreate(cwd, { prompt: initialPrompt }, context);
 }
 
 async function sendInitialPrompt(
@@ -540,6 +546,7 @@ async function resolveMcpCwd(params: {
   cwd: string;
   initialPrompt: string;
   callerWorkspaceId?: string;
+  fallbackSelection: StructuredGenerationSelection;
   worktree: CreateAgentFromMcpInput["worktree"];
 }): Promise<{
   resolvedCwd: string;
@@ -577,6 +584,7 @@ async function resolveMcpCwd(params: {
       action: worktree.action,
       githubPrNumber: worktree.githubPrNumber,
       firstAgentContext: { prompt: params.initialPrompt },
+      fallbackSelection: params.fallbackSelection,
       runSetup: false,
       paseoHome: dependencies.paseoHome,
       worktreesRoot: dependencies.worktreesRoot,

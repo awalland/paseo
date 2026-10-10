@@ -59,6 +59,7 @@ export class CreateAgentLifecycleDispatch {
     cwd: string;
     target: NormalizedGitOptions | null;
     firstAgentContext: FirstAgentContext;
+    fallbackSelection?: Parameters<CreatePaseoWorktreeWorkflowFn>[0]["fallbackSelection"];
     setupContinuation?: CreatePaseoWorktreeSetupContinuationInput;
     background?: boolean;
     callerWorkspaceId?: string;
@@ -71,6 +72,7 @@ export class CreateAgentLifecycleDispatch {
         background: input.background,
         callerWorkspaceId: input.callerWorkspaceId,
         firstAgentContext: input.firstAgentContext,
+        fallbackSelection: input.fallbackSelection,
         worktreeSlug: target.worktreeSlug,
         refName: target.refName,
         action: target.action,

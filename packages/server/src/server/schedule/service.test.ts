@@ -496,11 +496,14 @@ describe("ScheduleService", () => {
       clients: createTestAgentClients(),
       registry: agentStorage,
     });
+    const { createDirectoryWorkspace } = await createRegistryBackedScheduleWorkspaceDeps(tempDir);
+    const createWorkspace = vi.fn(createDirectoryWorkspace);
     const service = createScheduleService({
       paseoHome: tempDir,
       logger: createTestLogger(),
       agentManager: manager,
       agentStorage,
+      createDirectoryWorkspace: createWorkspace,
       providerSnapshotManager: NO_UNATTENDED_SCHEDULE_POLICY,
       now: () => now,
     });
@@ -527,6 +530,11 @@ describe("ScheduleService", () => {
     expect(agentId).toMatch(/^[0-9a-f-]{36}$/);
     const storedAgent = await agentStorage.get(agentId!);
     expect(storedAgent?.title).toBe("Audit flaky checkout flow");
+    expect(createWorkspace).toHaveBeenCalledWith({
+      cwd: tempDir,
+      firstAgentContext: { prompt: "Audit flaky checkout flow\n\nReport only blockers." },
+      fallbackSelection: expect.objectContaining({ provider: "claude", model: "test-model" }),
+    });
   });
 
   test("new-agent schedule records create no workspace until run time", async () => {

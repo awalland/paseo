@@ -33,7 +33,12 @@ import {
   requireActiveWorkspaceForArchive,
   type ArchiveDependencies,
 } from "../../workspace-archive-service.js";
-import { createAgentCommand, type CreateAgentFromMcpInput } from "../create-agent/create.js";
+import type { StructuredGenerationSelection } from "../structured-generation-providers.js";
+import {
+  createAgentCommand,
+  type CreateAgentFromMcpInput,
+  type EnsureWorkspaceForCreate,
+} from "../create-agent/create.js";
 import type { VoiceCallerContext, VoiceSpeakHandler } from "../../voice-types.js";
 import type { FirstAgentContext } from "../../messages.js";
 import { everyMsToFiveFieldCron } from "@getpaseo/protocol/schedule/cadence";
@@ -131,11 +136,7 @@ export interface PaseoToolHostDependencies {
   clearWorkspaceArchiving?: ArchiveDependencies["clearWorkspaceArchiving"];
   createPaseoWorktree?: CreatePaseoWorktreeWorkflowFn;
   // Mints a fresh directory workspace for a cwd and returns its id.
-  ensureWorkspaceForCreate?: (
-    cwd: string,
-    firstAgentContext?: FirstAgentContext,
-    context?: { callerWorkspaceId?: string },
-  ) => Promise<string>;
+  ensureWorkspaceForCreate?: EnsureWorkspaceForCreate;
   browserToolsEnabled?: boolean;
   browserToolsBroker?: BrowserToolsBroker | null;
   paseoToolPolicy?: ProviderPaseoToolsPolicy;
@@ -1529,15 +1530,27 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         worktree: CreateAgentFromMcpInput["worktree"];
       };
 
+  function resolveCreateAgentNamingSelection(
+    args: ResolvedCreateAgentToolArgs["parsedArgs"],
+  ): StructuredGenerationSelection {
+    const selection = resolveRequiredProviderModel(args.provider);
+    return {
+      ...selection,
+      thinkingOptionId: args.settings?.thinkingOptionId,
+    };
+  }
+
   async function resolveCreateAgentToolArgs(args: unknown): Promise<ResolvedCreateAgentToolArgs> {
     if (callerAgentId) {
       if (hasLegacyCreateAgentPlacement(args)) {
         // COMPAT(nestedCreateAgentPlacement): accept the old relationship/workspace shape without
         // advertising it to models. Added in v0.2.0; remove after 2027-01-17.
         const parsed = legacyAgentToAgentCreateAgentArgsSchema.parse(args);
-        const { cwd, workspaceId, worktree } = await resolveCreateAgentWorkspace(parsed.workspace, {
-          prompt: parsed.initialPrompt,
-        });
+        const { cwd, workspaceId, worktree } = await resolveCreateAgentWorkspace(
+          parsed.workspace,
+          { prompt: parsed.initialPrompt },
+          resolveCreateAgentNamingSelection(parsed),
+        );
         return {
           kind: "agent-scoped",
           parsedArgs: parsed,
@@ -1548,9 +1561,11 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         };
       }
       const parsed = agentToAgentCreateAgentArgsSchema.parse(args);
-      const { cwd, workspaceId } = await resolveCanonicalCreateAgentWorkspace(parsed.workspaceId, {
-        prompt: parsed.initialPrompt,
-      });
+      const { cwd, workspaceId } = await resolveCanonicalCreateAgentWorkspace(
+        parsed.workspaceId,
+        { prompt: parsed.initialPrompt },
+        resolveCreateAgentNamingSelection(parsed),
+      );
       return {
         kind: "agent-scoped",
         parsedArgs: parsed,
@@ -1574,6 +1589,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
       const { cwd, workspaceId, worktree } = await resolveCreateAgentWorkspace(
         parsedArgs.workspace,
         { prompt: parsedArgs.initialPrompt },
+        resolveCreateAgentNamingSelection(parsedArgs),
       );
       return {
         kind: "top-level",
@@ -1588,6 +1604,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
     const { cwd, workspaceId } = await resolveCanonicalCreateAgentWorkspace(
       parsedArgs.workspaceId,
       { prompt: parsedArgs.initialPrompt },
+      resolveCreateAgentNamingSelection(parsedArgs),
     );
     return {
       kind: "top-level",
@@ -1619,6 +1636,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
   async function resolveCanonicalCreateAgentWorkspace(
     workspaceId?: string,
     firstAgentContext?: FirstAgentContext,
+    fallbackSelection?: StructuredGenerationSelection,
   ): Promise<{
     cwd: string | undefined;
     workspaceId: string;
@@ -1639,6 +1657,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         cwd,
         workspaceId: await options.ensureWorkspaceForCreate(cwd, firstAgentContext, {
           callerWorkspaceId: resolveCallerAgent()?.workspaceId,
+          fallbackSelection,
         }),
       };
     }
@@ -1756,6 +1775,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
       | LegacyAgentToAgentCreateAgentArgs["workspace"]
       | NonNullable<LegacyTopLevelCreateAgentArgs["workspace"]>,
     firstAgentContext: FirstAgentContext | undefined,
+    fallbackSelection?: StructuredGenerationSelection,
   ): Promise<{
     cwd: string | undefined;
     workspaceId: string | undefined;
@@ -1809,6 +1829,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         cwd,
         workspaceId: await options.ensureWorkspaceForCreate(cwd, firstAgentContext, {
           callerWorkspaceId: resolveCallerAgent()?.workspaceId,
+          fallbackSelection,
         }),
         worktree: undefined,
       };

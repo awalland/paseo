@@ -1340,7 +1340,10 @@ describe("create_agent MCP tool", () => {
     expect(ensureWorkspace).toHaveBeenCalledWith(
       existingCwd,
       { prompt: "Do work" },
-      { callerWorkspaceId: undefined },
+      {
+        callerWorkspaceId: undefined,
+        fallbackSelection: { provider: "codex", model: "gpt-5.4", thinkingOptionId: undefined },
+      },
     );
     expect(spies.agentManager.createAgent).toHaveBeenCalledWith(
       expect.objectContaining({ cwd: existingCwd }),
@@ -2578,6 +2581,7 @@ describe("create_agent MCP tool", () => {
       expect.objectContaining({
         githubPrNumber: 123,
         firstAgentContext: { prompt: "Rename this PR branch from prompt" },
+        fallbackSelection: { provider: "codex", model: "gpt-5.4", thinkingOptionId: undefined },
       }),
       expect.objectContaining({
         setupContinuation: expect.objectContaining({ kind: "agent" }),

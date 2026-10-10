@@ -4309,6 +4309,7 @@ export class Session {
         cwd: config.cwd,
         target: gitIntent,
         firstAgentContext,
+        fallbackSelection: config,
         setupContinuation: worktree ? undefined : this.agentWorktreeSetupContinuation(),
         background: msg.background,
         callerWorkspaceId: this.getCallerWorkspaceId(msg.callerAgentId),
@@ -4369,14 +4370,12 @@ export class Session {
       createdAgentId = snapshot.id;
       await this.agentUpdates.forwardLiveAgent(snapshot);
       if (resolvedIntent.createdDirectoryWorkspace && trimmedPrompt) {
-        this.workspaceAutoName.scheduleForDirectory(
-          {
-            workspaceId: resolvedIntent.intent.workspaceId,
-            cwd: resolvedIntent.config.cwd,
-            firstAgentContext,
-          },
-          { currentSelection: this.getFocusedAgentSelectionForCwd(resolvedIntent.config.cwd) },
-        );
+        this.workspaceAutoName.scheduleForDirectory({
+          workspaceId: resolvedIntent.intent.workspaceId,
+          cwd: resolvedIntent.config.cwd,
+          firstAgentContext,
+          fallbackSelection: resolvedIntent.config,
+        });
       }
       this.createAgentLifecycleDispatch.registerAutoArchiveIfRequested({
         autoArchive,
@@ -6784,14 +6783,12 @@ export class Session {
       });
     if (request.firstAgentContext) {
       const firstAgentContext = request.firstAgentContext;
-      this.workspaceAutoName.scheduleForDirectory(
-        {
-          workspaceId: workspace.workspaceId,
-          cwd: workspace.cwd,
-          firstAgentContext,
-        },
-        { currentSelection: this.getFocusedAgentSelectionForCwd(workspace.cwd) },
-      );
+      this.workspaceAutoName.scheduleForDirectory({
+        workspaceId: workspace.workspaceId,
+        cwd: workspace.cwd,
+        firstAgentContext,
+        fallbackSelection: request.agent?.config,
+      });
     }
     return descriptor;
   }
@@ -6827,6 +6824,7 @@ export class Session {
         checkoutSource: source.checkoutSource,
         githubPrNumber: source.githubPrNumber,
         firstAgentContext: request.firstAgentContext,
+        fallbackSelection: request.agent?.config,
         title: request.title,
         background: request.background,
         callerWorkspaceId: this.getCallerWorkspaceId(request.callerAgentId),
@@ -7355,9 +7353,7 @@ export class Session {
           this.createPaseoWorktree(workflowInput, serviceOptions),
         warmWorkspaceGitData: (workspace) => this.warmWorkspaceGitDataForWorkspace(workspace),
         autoNameWorkspaceBranchForFirstAgent: (autoNameInput) =>
-          this.workspaceAutoName.scheduleForWorktree(autoNameInput, {
-            currentSelection: this.getFocusedAgentSelectionForCwd(autoNameInput.workspace.cwd),
-          }),
+          this.workspaceAutoName.scheduleForWorktree(autoNameInput),
         startWorkspaceSetup: (workspaceId, operation) =>
           this.workspaceSetupRuntime.start(workspaceId, operation),
         assertWorkspaceAutomationAllowed: (workspaceId) =>

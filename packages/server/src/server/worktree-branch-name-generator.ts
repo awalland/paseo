@@ -9,6 +9,7 @@ import {
 import {
   resolveStructuredGenerationProviders,
   type StructuredGenerationDaemonConfig,
+  type StructuredGenerationSelection,
 } from "./agent/structured-generation-providers.js";
 import { buildAgentBranchNameSeed } from "./agent/prompt-attachments.js";
 import { buildMetadataPrompt } from "../utils/build-metadata-prompt.js";
@@ -27,11 +28,7 @@ export interface GenerateBranchNameFromFirstAgentContextOptions {
   workspaceGitService?: Pick<WorkspaceGitService, "resolveRepoRoot">;
   providerSnapshotManager?: Pick<ProviderSnapshotManager, "listProviders">;
   daemonConfig?: StructuredGenerationDaemonConfig | null;
-  currentSelection?: {
-    provider?: string | null;
-    model?: string | null;
-    thinkingOptionId?: string | null;
-  };
+  fallbackSelection?: StructuredGenerationSelection;
   firstAgentContext: FirstAgentContext | undefined;
   logger: BranchNameGeneratorLogger;
   deps?: {
@@ -107,7 +104,7 @@ export async function generateBranchNameFromFirstAgentContext(
           cwd: options.cwd,
           providerSnapshotManager: options.providerSnapshotManager,
           daemonConfig: options.daemonConfig,
-          currentSelection: options.currentSelection,
+          currentSelection: options.fallbackSelection,
         })
       : [];
     const result = await generator({

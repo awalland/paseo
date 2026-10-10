@@ -31,7 +31,7 @@ The candidate list is assembled in this order:
    2. `gpt-5.4-mini` (low reasoning)
    3. `minimax-m3`
    4. `nemotron-3-super`
-3. **The model currently selected** for that agent or draft, as a last resort.
+3. **The task’s model selection**, as a last resort. Workspace naming uses the first agent’s requested provider, model, and thinking level, independently of which agent is focused. Other metadata actions use the current agent or draft selection.
 
 Each default is a match on the model id or name, so the first enabled provider that ships a matching model wins. Anything that can't be resolved against an enabled provider is skipped. Duplicates are removed, then generation tries the list top to bottom.
 
