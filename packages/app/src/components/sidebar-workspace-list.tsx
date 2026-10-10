@@ -2551,15 +2551,10 @@ const styles = StyleSheet.create((theme) => ({
   pinnedSection: {
     marginBottom: theme.spacing[1],
   },
-  // Three times the gap a row keeps from its neighbour, so the break between two groups reads as
-  // a break rather than as one more row of pitch. Kept equal to `statusGroupBlockExpanded` — the
-  // two groupings are the same list under a different heading and must not breathe differently.
-  //
-  // Padding on the block rather than margin, and only while it has children: the gap belongs to
-  // the rows underneath the header, so a collapsed project gives it back and a column of collapsed
-  // headers closes up to the pitch of a list instead of staying spaced for content that is gone.
+  // Keep in step with `statusGroupBlockExpanded`. Only expanded groups reserve this
+  // space so collapsed headers return to the pitch of an ordinary list.
   projectBlockExpanded: {
-    paddingBottom: theme.spacing[3],
+    paddingBottom: theme.spacing[0.5],
   },
   workspaceListContainer: {},
   // Kept in step with `workspaceRow` above. It stands in a project's list where a workspace row
@@ -2569,9 +2564,9 @@ const styles = StyleSheet.create((theme) => ({
   // the step in reads as belonging to that project. Padding rather than margin, so the hover and
   // pressed fills stay the same box as every other row in the sidebar.
   newWorkspaceGhostRow: {
-    minHeight: 36,
+    minHeight: 32,
     marginBottom: theme.spacing[0.5],
-    paddingVertical: theme.spacing[2],
+    paddingVertical: theme.spacing[1.5],
     paddingLeft: theme.spacing[4],
     paddingRight: theme.spacing[3],
     borderRadius: theme.borderRadius.lg,
@@ -2609,11 +2604,11 @@ const styles = StyleSheet.create((theme) => ({
   },
   projectRow: {
     position: "relative",
-    minHeight: 36,
-    paddingVertical: theme.spacing[2],
+    minHeight: 32,
+    paddingVertical: theme.spacing[1.5],
     paddingHorizontal: theme.spacing[2],
     borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing[1],
+    marginBottom: theme.spacing[0.5],
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -2731,9 +2726,9 @@ const styles = StyleSheet.create((theme) => ({
     right: theme.spacing[2],
   },
   workspaceRow: {
-    minHeight: 36,
+    minHeight: 32,
     marginBottom: theme.spacing[0.5],
-    paddingVertical: theme.spacing[2],
+    paddingVertical: theme.spacing[1.5],
     paddingLeft: theme.spacing[2],
     paddingRight: theme.spacing[3],
     borderRadius: theme.borderRadius.lg,
