@@ -1014,7 +1014,7 @@ function ProjectHeaderRow({
           onPressOut={handleProjectPressOut}
           onPress={handlePress}
         >
-          <Text style={styles.projectTitle} numberOfLines={1}>
+          <Text style={styles.projectTitle(isProjectActive)} numberOfLines={1}>
             {displayName}
           </Text>
         </Pressable>
@@ -1898,7 +1898,7 @@ function ProjectBlock({
       {readmeMutation.error ? (
         <Text
           accessibilityRole="alert"
-          style={styles.projectTitle}
+          style={styles.projectTitle(false)}
           testID={`sidebar-project-readme-error-${project.viewKey}`}
         >
           {readmeMutation.error.message}
@@ -2680,13 +2680,13 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     minWidth: 0,
   },
-  projectTitle: {
-    color: theme.colors.foregroundMuted,
+  projectTitle: (active: boolean) => ({
+    color: active ? theme.colors.foreground : theme.colors.foregroundMuted,
     fontSize: theme.fontSize.base,
-    fontWeight: "400",
+    fontWeight: active ? theme.fontWeight.medium : theme.fontWeight.normal,
     minWidth: 0,
     flexShrink: 1,
-  },
+  }),
   projectActionButton: {
     flexDirection: "row",
     alignItems: "center",
