@@ -121,3 +121,39 @@ test("a failed project README lookup stays visible and can be retried", async ({
     await project.cleanup();
   }
 });
+
+test("the icon toggles the project while its name also opens the README", async ({ page }) => {
+  const project = await seedProjectNamedWithTrailingSpace();
+  try {
+    await gotoAppShell(page);
+    await expectProjectRow(page, project.projectKey);
+    const initialUrl = page.url();
+    const toggle = page.getByTestId(
+      `sidebar-project-toggle-${projectEquivalenceViewKey(project.projectKey)}`,
+    );
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(page).toHaveURL(initialUrl);
+    await expect(page.getByTestId("markdown-preview-frame")).toHaveCount(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page).toHaveURL(initialUrl);
+    await expect(page.getByTestId("markdown-preview-frame")).toHaveCount(0);
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(page).toHaveURL(initialUrl);
+    await expect(page.getByTestId("markdown-preview-frame")).toHaveCount(0);
+    await page.keyboard.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await page
+      .getByTestId(`sidebar-project-row-${projectEquivalenceViewKey(project.projectKey)}`)
+      .getByText(path.basename(project.directoryPath), { exact: true })
+      .click();
+    await expect(page.getByTestId("markdown-preview-frame")).toContainText("Trailing space");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  } finally {
+    await project.cleanup();
+  }
+});

@@ -123,7 +123,6 @@ import {
   SidebarWorkspaceTrailingContent,
   useSidebarWorkspaceTrailing,
 } from "@/components/sidebar/workspace-trailing";
-import { PressHighlight } from "@/components/ui/press-highlight";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Shortcut } from "@/components/ui/shortcut";
 import type { ShortcutKey } from "@/utils/format-shortcut";
@@ -250,6 +249,7 @@ interface ProjectHeaderRowProps {
   statusBucket: SidebarStateBucket | null;
   selected?: boolean;
   chevron: "expand" | "collapse" | null;
+  onToggleCollapsed: () => void;
   onPress: () => void;
   worktreeTarget: SidebarProjectHostTarget | null;
   isProjectActive?: boolean;
@@ -864,6 +864,7 @@ function ProjectHeaderRow({
   statusBucket,
   selected = false,
   chevron,
+  onToggleCollapsed,
   onPress,
   worktreeTarget,
   isProjectActive = false,
@@ -920,6 +921,24 @@ function ProjectHeaderRow({
     onPress();
   }, [interaction.didLongPressRef, onPress]);
 
+  const handleTogglePress = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+      if (interaction.didLongPressRef.current) {
+        interaction.didLongPressRef.current = false;
+        return;
+      }
+      onToggleCollapsed();
+    },
+    [interaction.didLongPressRef, onToggleCollapsed],
+  );
+  const expanded = chevron === "collapse";
+  const toggleAccessibilityState = useMemo(() => ({ expanded }), [expanded]);
+  const toggleWebProps = useMemo(
+    () => (platformIsWeb ? ({ "aria-expanded": expanded } as const) : null),
+    [expanded],
+  );
+
   const handlePointerEnter = useCallback(() => {
     if (!contextMenuOpen) setIsHovered(true);
   }, [contextMenuOpen]);
@@ -939,40 +958,66 @@ function ProjectHeaderRow({
     setIsPressed(false);
     interaction.handlePressOut();
   }, [interaction]);
+  const handleTogglePressIn = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+      handleProjectPressIn(event);
+    },
+    [handleProjectPressIn],
+  );
 
   const projectRowStyle = useCallback(
-    ({ pressed }: PressableStateCallbackType) => [
+    () => [
       styles.projectRow,
       isDragging && styles.projectRowDragging,
       selected && styles.sidebarRowSelected,
       isHovered && styles.projectRowHovered,
-      pressed && styles.projectRowPressed,
+      isPressed && styles.projectRowPressed,
     ],
-    [isDragging, selected, isHovered],
+    [isDragging, selected, isHovered, isPressed],
   );
 
   const rowChildren = (
     <>
       <View style={styles.projectRowLeft}>
-        <ProjectLeadingVisual
-          displayName={displayName}
-          iconDataUri={iconDataUri}
-          statusBucket={statusBucket}
-          projectViewKey={project.viewKey}
-          backdrop={getSidebarRowBackdrop({ isDragging, isPressed, selected, isHovered })}
-          chevron={chevron}
-          showChevron={isHovered && chevron !== null}
-          isArchiving={isArchiving}
-        />
+        <Pressable
+          {...toggleWebProps}
+          accessibilityRole="button"
+          accessibilityLabel={displayName}
+          accessibilityState={toggleAccessibilityState}
+          onPress={handleTogglePress}
+          onPressIn={handleTogglePressIn}
+          onPressOut={handleProjectPressOut}
+          onTouchMove={interaction.handleTouchMove}
+          testID={`sidebar-project-toggle-${project.viewKey}`}
+        >
+          <ProjectLeadingVisual
+            displayName={displayName}
+            iconDataUri={iconDataUri}
+            statusBucket={statusBucket}
+            projectViewKey={project.viewKey}
+            backdrop={getSidebarRowBackdrop({ isDragging, isPressed, selected, isHovered })}
+            chevron={chevron}
+            showChevron={isHovered && chevron !== null}
+            isArchiving={isArchiving}
+          />
+        </Pressable>
 
         {isOpeningReadme ? (
           <ThemedLoadingSpinner size={14} uniProps={foregroundMutedColorMapping} />
         ) : null}
-        <View style={styles.projectTitleGroup}>
+        <Pressable
+          style={styles.projectTitleGroup}
+          accessibilityRole="button"
+          onPressIn={handleProjectPressIn}
+          onTouchMove={interaction.handleTouchMove}
+          onPressOut={handleProjectPressOut}
+          onPress={handlePress}
+        >
           <Text style={styles.projectTitle} numberOfLines={1}>
             {displayName}
           </Text>
-        </View>
+        </Pressable>
       </View>
       <ProjectRowTrailingActions
         projectViewKey={project.viewKey}
@@ -1004,18 +1049,9 @@ function ProjectHeaderRow({
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
       >
-        <PressHighlight
-          accessibilityRole="button"
-          style={projectRowStyle}
-          highlightStyle={styles.projectRowPressed}
-          onPressIn={handleProjectPressIn}
-          onTouchMove={interaction.handleTouchMove}
-          onPressOut={handleProjectPressOut}
-          onPress={handlePress}
-          testID={`sidebar-project-row-${project.viewKey}`}
-        >
+        <View style={projectRowStyle()} testID={`sidebar-project-row-${project.viewKey}`}>
           {rowChildren}
-        </PressHighlight>
+        </View>
       </View>
     );
   }
@@ -1030,14 +1066,9 @@ function ProjectHeaderRow({
         onPointerLeave={handlePointerLeave}
       >
         <ContextMenuTrigger
+          contextOnly
           enabledOnMobile={false}
-          accessibilityRole="button"
           style={projectRowStyle}
-          highlightStyle={styles.projectRowPressed}
-          onPressIn={handleProjectPressIn}
-          onTouchMove={interaction.handleTouchMove}
-          onPressOut={handleProjectPressOut}
-          onPress={handlePress}
           testID={`sidebar-project-row-${project.viewKey}`}
         >
           {rowChildren}
@@ -1785,9 +1816,12 @@ function ProjectBlock({
 
   const { mutate: openReadme, isPending: isOpeningReadme } = readmeMutation;
   const handleProjectPress = useCallback(() => {
-    onToggleCollapsed(project.viewKey);
     if (!isOpeningReadme) openReadme();
-  }, [onToggleCollapsed, project.viewKey, isOpeningReadme, openReadme]);
+    onToggleCollapsed(project.viewKey);
+  }, [isOpeningReadme, openReadme, onToggleCollapsed, project.viewKey]);
+  const handleToggleCollapsed = useCallback(() => {
+    onToggleCollapsed(project.viewKey);
+  }, [onToggleCollapsed, project.viewKey]);
 
   let projectChildren = null;
   if (!collapsed) {
@@ -1843,6 +1877,7 @@ function ProjectBlock({
         statusBucket={aggregateStatusBucket}
         selected={false}
         chevron={rowModel.chevron}
+        onToggleCollapsed={handleToggleCollapsed}
         onPress={handleProjectPress}
         worktreeTarget={
           rowModel.trailingAction.kind === "new_workspace" ? rowModel.trailingAction.target : null

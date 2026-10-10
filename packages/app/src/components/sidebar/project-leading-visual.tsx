@@ -53,6 +53,7 @@ const needsInputColorMapping = (theme: Theme) => ({
 /**
  * Leading slot of a sidebar project row: chevron on hover, archive spinner while removing,
  * otherwise the project icon carrying the project's aggregate workspace status.
+ * Ignore pointer events so swapping visuals keeps the containing button as the press target.
  */
 export function ProjectLeadingVisual({
   displayName,
@@ -77,7 +78,7 @@ export function ProjectLeadingVisual({
 }) {
   if (showChevron && chevron !== null) {
     return (
-      <View style={styles.projectLeadingVisualSlot}>
+      <View pointerEvents="none" style={styles.projectLeadingVisualSlot}>
         <ProjectInlineChevron chevron={chevron} />
       </View>
     );
@@ -85,7 +86,11 @@ export function ProjectLeadingVisual({
 
   if (isArchiving) {
     return (
-      <View style={styles.projectLeadingVisualSlot} testID="project-status-indicator-archiving">
+      <View
+        pointerEvents="none"
+        style={styles.projectLeadingVisualSlot}
+        testID="project-status-indicator-archiving"
+      >
         <ThemedActivityIndicator size={8} uniProps={foregroundMutedColorMapping} />
       </View>
     );
@@ -136,6 +141,7 @@ export function ProjectStatusIndicator({
 
   return (
     <View
+      pointerEvents="none"
       style={styles.projectLeadingVisualSlot}
       testID={
         testID ??
